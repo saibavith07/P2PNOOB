@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Structify</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #f4f6f9;
+            margin: 40px;
+        }
+
+        h1 {
+            color: #2c3e50;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        textarea, select {
+            width: 100%;
+            padding: 8px;
+            margin-top: 6px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #34495e;
+        }
+
+        .output {
+            white-space: pre-wrap;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+
+<h1>Structify – Structured Execution Engine</h1>
+
+<div class="card">
+
+    <label><b>Topic</b></label>
+    <textarea id="topic" rows="3" placeholder="Enter your idea..."></textarea>
+
+    <label><b>Domain</b></label>
+    <select id="domain">
+        <option value="Project Blueprint">Project Blueprint</option>
+    </select>
+
+    <label><b>Complexity Level</b></label>
+    <select id="level">
+        <option value="Basic">Basic</option>
+        <option value="Medium">Medium</option>
+        <option value="High">High</option>
+        <option value="Advanced">Advanced</option>
+    </select>
+
+    <label><b>Execution Constraints (Editable)</b></label>
+    <textarea id="constraints" rows="3"
+        placeholder="Example: low budget, student-level, avoid AI, focus on scalability"></textarea>
+
+    <button onclick="generate()">Generate Structured Output</button>
+
+</div>
+
+<div class="output" id="result"></div>
+
+<script>
+    async function generate() {
+
+        const topic = document.getElementById("topic").value;
+        const domain = document.getElementById("domain").value;
+        const level = document.getElementById("level").value;
+        const constraints = document.getElementById("constraints").value;
+
+        const response = await fetch("/generate", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                topic: topic,
+                domain: domain,
+                level: level,
+                constraints: constraints
+            })
+        });
+
+        const data = await response.json();
+        document.getElementById("result").innerText = data.result;
+    }
+</script>
+
+</body>
+</html>

@@ -5,8 +5,8 @@
     <style>
         body {
             font-family: Arial;
-            background: #f4f6f9;
             margin: 40px;
+            background: #f4f6f9;
         }
 
         h1 {
@@ -15,29 +15,40 @@
 
         .card {
             background: white;
-            padding: 25px;
+            padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
-        textarea, select {
+        textarea, select, input {
             width: 100%;
             padding: 8px;
             margin-top: 6px;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
 
         button {
-            padding: 10px 20px;
+            padding: 8px 15px;
             background-color: #2c3e50;
             color: white;
             border: none;
             cursor: pointer;
+            margin-right: 5px;
         }
 
         button:hover {
             background-color: #34495e;
+        }
+
+        .section-wrapper {
+            margin-bottom: 8px;
+            display: flex;
+            gap: 5px;
+        }
+
+        .section-wrapper input {
+            flex: 1;
         }
 
         .output {
@@ -45,6 +56,7 @@
             background: white;
             padding: 20px;
             border-radius: 8px;
+            margin-top: 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
     </style>
@@ -56,12 +68,24 @@
 <div class="card">
 
     <label><b>Topic</b></label>
-    <textarea id="topic" rows="3" placeholder="Enter your idea..."></textarea>
+    <textarea id="topic" rows="3" placeholder="Enter topic..."></textarea>
 
-    <label><b>Domain</b></label>
-    <select id="domain">
-        <option value="Project Blueprint">Project Blueprint</option>
+    <label><b>Select Domain</b></label>
+    <select id="domain" onchange="loadOutputs()">
+        <option value="">-- Select Domain --</option>
+        {% for domain in domains %}
+        <option value="{{ domain }}">{{ domain }}</option>
+        {% endfor %}
     </select>
+
+    <label><b>Select Output Type</b></label>
+    <select id="output_type" onchange="loadSchema()">
+        <option value="">-- Select Output Type --</option>
+    </select>
+
+    <h3>Editable Schema</h3>
+    <div id="schema_container"></div>
+    <button type="button" onclick="addSection()">+ Add Section</button>
 
     <label><b>Complexity Level</b></label>
     <select id="level">
@@ -71,40 +95,130 @@
         <option value="Advanced">Advanced</option>
     </select>
 
-    <label><b>Execution Constraints (Editable)</b></label>
-    <textarea id="constraints" rows="3"
-        placeholder="Example: low budget, student-level, avoid AI, focus on scalability"></textarea>
-
-    <button onclick="generate()">Generate Structured Output</button>
+    <button onclick="generate()">Generate</button>
 
 </div>
 
 <div class="output" id="result"></div>
 
+<div class="card">
+    <label><b>Refinement Instruction</b></label>
+    <textarea id="refinement" rows="2" placeholder="Improve clarity, add technical depth..."></textarea>
+    <button onclick="refine()">Refine Output</button>
+</div>
+
 <script>
-    async function generate() {
 
-        const topic = document.getElementById("topic").value;
-        const domain = document.getElementById("domain").value;
-        const level = document.getElementById("level").value;
-        const constraints = document.getElementById("constraints").value;
+const DOMAIN_DATA = JSON.parse('{{ domains | tojson | safe }}');
 
-        const response = await fetch("/generate", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                topic: topic,
-                domain: domain,
-                level: level,
-                constraints: constraints
-            })
-        });
+function loadOutputs() {
+    const domain = document.getElementById("domain").value;
+    const outputSelect = document.getElementById("output_type");
+    outputSelect.innerHTML = "<option value=''>-- Select Output Type --</option>";
 
-        const data = await response.json();
-        document.getElementById("result").innerText = data.result;
+    if (!domain) return;
+
+    const outputs = DOMAIN_DATA[domain];
+
+    for (let key in outputs) {
+        const option = document.createElement("option");
+        option.value = key;
+        option.text = key;
+        outputSelect.appendChild(option);
     }
+
+    document.getElementById("schema_container").innerHTML = "";
+}
+
+function loadSchema() {
+    const domain = document.getElementById("domain").value;
+    const outputType = document.getElementById("output_type").value;
+
+    if (!domain || !outputType) return;
+
+    const sections = DOMAIN_DATA[domain][outputType];
+    const container = document.getElementById("schema_container");
+    container.innerHTML = "";
+
+    sections.forEach(section => {
+        createSection(section);
+    });
+}
+
+function createSection(value="") {
+    const container = document.getElementById("schema_container");
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "section-wrapper";
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = value;
+    input.className = "section-input";
+
+    const addBtn = document.createElement("button");
+    addBtn.innerText = "+";
+    addBtn.onclick = () => createSection("");
+
+    const removeBtn = document.createElement("button");
+    removeBtn.innerText = "-";
+    removeBtn.onclick = () => wrapper.remove();
+
+    wrapper.appendChild(input);
+    wrapper.appendChild(addBtn);
+    wrapper.appendChild(removeBtn);
+
+    container.appendChild(wrapper);
+}
+
+function addSection() {
+    createSection("");
+}
+
+async function generate() {
+
+    const topic = document.getElementById("topic").value;
+    const domain = document.getElementById("domain").value;
+    const output_type = document.getElementById("output_type").value;
+    const level = document.getElementById("level").value;
+
+    const sections = [];
+    document.querySelectorAll(".section-input").forEach(input => {
+        if (input.value.trim() !== "") {
+            sections.push(input.value.trim());
+        }
+    });
+
+    const response = await fetch("/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            topic,
+            domain,
+            output_type,
+            level,
+            sections
+        })
+    });
+
+    const data = await response.json();
+    document.getElementById("result").innerText = data.result;
+}
+
+async function refine() {
+
+    const refinement = document.getElementById("refinement").value;
+
+    const response = await fetch("/refine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refinement })
+    });
+
+    const data = await response.json();
+    document.getElementById("result").innerText = data.result;
+}
+
 </script>
 
 </body>
